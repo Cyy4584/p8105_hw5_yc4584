@@ -1,0 +1,75 @@
+---
+title: "p8105_hw5_yc4584"
+author: "Yingyu Cui"
+date: "2024-11-10"
+output: github_document
+---
+
+```{r setup}
+library(tidyverse)
+set.seed(1)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+# Problem 1
+## write a function for duplicated birthdays
+```{r function birthday}
+duplicated_birthday = function(n){
+  birthdays = sample(1:365, n, replace = TRUE)
+  
+  return(any(duplicated(birthdays)))
+}
+```
+## then we run this 10000 times for number 2:50 and calculate the probability of duplicated birthdays
+```{r 10000 times for 2:50}
+sim_birthday_results = 
+  expand_grid(
+    group_size = c(2:50),
+    iter = 1:10000
+  ) |> 
+  mutate(
+    results = map_lgl(group_size, duplicated_birthday)
+  ) |> 
+  group_by(group_size) |>
+  summarize(
+    prob = mean(results)
+  )
+
+sim_birthday_results
+```
+
+## then we make a plot showing the probability as a function of group size
+```{r plot1}
+birth_duplicated_plot =
+  ggplot(sim_birthday_results, aes(x = group_size, y = prob)) +
+  geom_point() +
+  geom_line() +
+  labs(
+    x = "Group Size",
+    y = "Probability of Duplicated Birthdays",
+    title = "Probability of Duplicated Birthdays by Group Size"
+  )
+
+birth_duplicated_plot
+```
+
+
+Here is the comment:
+The plot shows the probability of duplicated birthdays by group size. The probability increases as the group size increases. When the group size is 23, the probability of duplicated birthdays is 0.5. This examines the birthday paradox, which states that in a group of 23 people, there is a 50% chance that two people share the same birthday, and when the group size is 50, the probability is close to 1. 
+
+

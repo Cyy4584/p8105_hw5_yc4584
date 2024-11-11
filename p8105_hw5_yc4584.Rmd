@@ -190,4 +190,112 @@ comment on the plot:
 the sample average of μ^ across tests for which the null is rejected is not approximately equal to the true value of μ. This is because in the samples that the null is rejected, the samples tend to have a larger effect size and also more likely to reject the null hypothesis, which could skewed the average of μ^ upwards in these samples. And this is the reason why the average estimate of μ^ is larger than the true value of μ. However, when the true mean is more away from 0, the average estimate of μ^ is closer to the true value of μ. This is because in these sample, there is a higher power of the test, which means the proportion of test rejected is higher, and the average estimate of μ^ is more likely to be closer to the true value of μ.
 
 
+# Problem 3
+## First I will load the data in a relative path
+```{r load data}
+homicide_df = read_csv("data/homicide_data.csv")
+homicide_df
+```
+
+Describe the raw data: 
+The data contains 52179 observations and 12 variables. It is a data set of homicides across major United States. The variables include the unique code for victim, the case reported date, the victim imformation including name, gender, age and race, the incident information about the location and final disposition of the case. For this data, only the reported date and latitude and longitude of the incident location are numeric, and the rest are character variables.
+
+## Create variable and summarize
+```{r create variable and summarize} 
+# create a new variable for the city and state
+homicide_df =
+  homicide_df |> 
+  mutate(city_state = paste(city, state, sep = ", "))
+
+homicide_df
+
+# summarize
+city_summary = 
+  homicide_df |> 
+  group_by(city_state) |> 
+  summarize(
+    city_homicides = n(),
+    unsolved_homicides = sum(disposition %in% c("Closed without arrest", "Open/No arrest"))
+  )
+
+city_summary
+```
+## For the city of Baltimore, MD, we process the data as following:
+```{r process data for Baltimore}
+# filter the data for Baltimore, MD
+baltimore_homicides = 
+  city_summary |> 
+  filter(city_state == "Baltimore, MD")
+
+# calculate the proportion of unsolved homicides
+baltimore_unsolved_prop = 
+  prop.test(
+    baltimore_homicides$unsolved_homicides, baltimore_homicides$city_homicides
+    )
+
+# clean and pull the estimate and confidence interval
+tidy_result = broom::tidy(baltimore_unsolved_prop)
+estimate = 
+  tidy_result |> 
+  pull(estimate)
+
+conf_low = tidy_result |>  pull(conf.low)
+conf_high = tidy_result |>  pull(conf.high)
+confidence_interval =
+  paste("(", conf_low, ", ", conf_high, ")", sep = "")
+
+estimate
+confidence_interval
+
+```
+## run prop.test for each of the cities and create a tidy dataframe with estimated proportions and CIs
+```{r run prop.test for each city}
+# first we create a function for prop.test
+prop_test = function(unsolved_homicides, city_homicides)
+  {
+  prop_result = prop.test(unsolved_homicides, city_homicides)
+  
+  tidy_result = broom::tidy(prop_result)
+  
+  estimate = 
+    tidy_result |> 
+    pull(estimate)
+  
+  conf_low = tidy_result |>  pull(conf.low)
+  conf_high = tidy_result |>  pull(conf.high)
+  confidence_interval =
+    paste("(", conf_low, ", ", conf_high, ")", sep = "")
+  
+  tibble(estimate = estimate,
+         conf_low = conf_low,
+         conf_high = conf_high,
+         confidence_interval = confidence_interval)
+}
+
+# then we run the prop.test for each city
+city_summary_with_prop = 
+  city_summary |> 
+  mutate(
+    prop_test_results = map2(unsolved_homicides, city_homicides, prop_test)
+  ) |> 
+  unnest(prop_test_results)
+```
+
+## Create a plot that shows the estimates and CIs for each city
+```{r plot for estimates and CIs}
+city_summary_with_prop_plot = 
+  city_summary_with_prop |>
+  mutate(city_state = fct_reorder(city_state, estimate)) |> 
+           ggplot(aes(x = city_state, y = estimate)) +
+           geom_point(color = "blue") +
+           geom_errorbar(aes(ymin = conf_low, ymax = conf_high), color = "red") +
+           coord_flip() +
+           labs(
+             title = "Proportion and CIs of Unsolved Homicides by City",
+             x = "City",
+             y = "Estimated Proportion and CIs of Unsolved Homicides"
+  )
+
+city_summary_with_prop_plot
+```
 

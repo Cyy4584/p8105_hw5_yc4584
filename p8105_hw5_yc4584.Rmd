@@ -72,4 +72,122 @@ birth_duplicated_plot
 Here is the comment:
 The plot shows the probability of duplicated birthdays by group size. The probability increases as the group size increases. When the group size is 23, the probability of duplicated birthdays is 0.5. This examines the birthday paradox, which states that in a group of 23 people, there is a 50% chance that two people share the same birthday, and when the group size is 50, the probability is close to 1. 
 
+# Problem 2
+## when μ=0, first we establish a function for the result of the t-test
+```{r function t_test}
+t_test_result = function(n, mu){
+  x = rnorm(n, mean = mu, sd = 5)
+  
+  t_test = t.test(x, mu = 0, conf.level = 0.95)
+  
+  tidy_result = t_test |> 
+    broom::tidy()
+  
+  mean = tidy_result$estimate
+  p_value = tidy_result$p.value
+  
+  tibble(mean = mean, 
+         p_value = p_value)
+}
+```
+
+## Now we obtain a data frame with the results of 5000 t-tests
+```{r 5000 t-tests}
+sim_t_test_results = 
+  expand_grid(
+    n = 30,
+    mu = 0,
+    iter = 1:5000
+  ) |> 
+  mutate(
+   results = map2(n, mu, t_test_result)
+  ) |> 
+  unnest(results)
+```
+## now I will repeat the above steps for μ=1:6
+```{r repeat for mu from 1 to 6}
+sim_t_test_results_1_6 = 
+  expand_grid(
+    n = 30,
+    mu = c(1, 2, 3, 4, 5, 6),
+    iter = 1:5000
+  ) |> 
+  mutate(
+    results = map2(n, mu, t_test_result)
+  ) |> 
+  unnest(results)
+```
+
+## Make a plot showing the association of power and different values of μ
+```{r plot of power and mu}
+# first we calculate the power
+sim_t_test_results_all = 
+  bind_rows(sim_t_test_results, sim_t_test_results_1_6)
+
+power_results = 
+  sim_t_test_results_all |> 
+  group_by(mu) |> 
+  summarize(
+    power = mean(p_value < 0.05)
+  )
+
+power_plot =
+  ggplot(power_results, aes(x = mu, y = power)) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = 0:6) +
+  labs(
+    x = "True Mean (μ)",
+    y = "Power (Proportion of Null Rejected)",
+    title = "Power of the Test as a Function of Effect Size (μ)"
+  )
+
+power_plot
+```
+
+
+Comment on the plot:
+The plot shows that the stronger effect size (which is the more mu is away from 0) is, the higher the power of the test is and the more likely the test is to correctly reject the null hypothesis. When the true mean is 0, the power is the lowest, which is around 0.05. When the true mean is 6, the power is the highest, which is around 1. 
+
+## Make one overlapping plots, blue one is  showing the average estimate of μ^ on the y axis and the true value of μ on the x axis; the red one is the average estimate of μ^ only in samples for which the null was rejected on the y axis and the true value of μ on the x axis. 
+```{r two plots}
+# first calculate the average estimate of μ^ for two plots
+mean_results = 
+  sim_t_test_results_all |> 
+  group_by(mu) |> 
+  summarize(
+    avg_estimate_all = mean(mean),
+    avg_estimate_rejected = mean(mean[p_value < 0.05])
+  ) |> 
+  pivot_longer(
+    cols = c(avg_estimate_all, avg_estimate_rejected),
+    names_to = "type",
+    values_to = "avg_estimate"
+  ) |> 
+  mutate(type = recode(type, 
+                        avg_estimate_all = "All Samples", 
+                        avg_estimate_rejected = "Rejected Samples"))
+
+# Now I will make an overlapping plot
+comparison_plot = 
+  ggplot(mean_results, aes(x = mu, y = avg_estimate, color = type)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "True Mean (μ)",
+    y = "Average Estimate of μ^",
+    title = "Average Estimate of μ^ for All Samples and Only Rejected Samples",
+    color = "Type"
+  ) +
+  scale_x_continuous(breaks = 0:6) +
+  scale_color_manual(values = c("All Samples" = "blue", "Rejected Samples" = "red"))
+  
+
+comparison_plot
+```
+
+comment on the plot:
+the sample average of μ^ across tests for which the null is rejected is not approximately equal to the true value of μ. This is because in the samples that the null is rejected, the samples tend to have a larger effect size and also more likely to reject the null hypothesis, which could skewed the average of μ^ upwards in these samples. And this is the reason why the average estimate of μ^ is larger than the true value of μ. However, when the true mean is more away from 0, the average estimate of μ^ is closer to the true value of μ. This is because in these sample, there is a higher power of the test, which means the proportion of test rejected is higher, and the average estimate of μ^ is more likely to be closer to the true value of μ.
+
+
 

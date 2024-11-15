@@ -103,6 +103,8 @@ sim_t_test_results =
    results = map2(n, mu, t_test_result)
   ) |> 
   unnest(results)
+
+sim_t_test_results
 ```
 ## now I will repeat the above steps for μ=1:6
 ```{r repeat for mu from 1 to 6}
@@ -116,6 +118,8 @@ sim_t_test_results_1_6 =
     results = map2(n, mu, t_test_result)
   ) |> 
   unnest(results)
+
+sim_t_test_results_1_6
 ```
 
 ## Make a plot showing the association of power and different values of μ
@@ -130,6 +134,8 @@ power_results =
   summarize(
     power = mean(p_value < 0.05)
   )
+
+power_results
 
 power_plot =
   ggplot(power_results, aes(x = mu, y = power)) +
@@ -167,6 +173,8 @@ mean_results =
   mutate(type = recode(type, 
                         avg_estimate_all = "All Samples", 
                         avg_estimate_rejected = "Rejected Samples"))
+
+mean_results
 
 # Now I will make an overlapping plot
 comparison_plot = 
@@ -249,7 +257,7 @@ confidence_interval
 
 ```
 ## run prop.test for each of the cities and create a tidy dataframe with estimated proportions and CIs
-```{r run prop.test for each city}
+```{r run prop.test for each city, warning=FALSE}
 # first we create a function for prop.test
 prop_test = function(unsolved_homicides, city_homicides)
   {
@@ -279,6 +287,8 @@ city_summary_with_prop =
     prop_test_results = map2(unsolved_homicides, city_homicides, prop_test)
   ) |> 
   unnest(prop_test_results)
+
+city_summary_with_prop
 ```
 
 ## Create a plot that shows the estimates and CIs for each city
@@ -294,7 +304,10 @@ city_summary_with_prop_plot =
              title = "Proportion and CIs of Unsolved Homicides by City",
              x = "City",
              y = "Estimated Proportion and CIs of Unsolved Homicides"
-  )
+  ) + 
+    theme(
+    axis.text.y = element_text(size = 5)
+  ) 
 
 city_summary_with_prop_plot
 ```
